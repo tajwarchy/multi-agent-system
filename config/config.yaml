@@ -1,0 +1,158 @@
+# ============================================================
+#  Multi-Agent System — Central Configuration
+#  All runtime parameters live here. No hardcoded values
+#  anywhere in the codebase.
+# ============================================================
+
+
+# ── LLM ─────────────────────────────────────────────────────
+llm:
+  provider: ollama                  # "ollama" | "openai" | "anthropic"
+  model: mistral                    # ollama: mistral | llama3.2
+                                    # openai: gpt-4o
+                                    # anthropic: claude-sonnet-4-5
+  base_url: http://localhost:11434  # Ollama server URL (host machine)
+                                    # In Docker: http://host.docker.internal:11434
+  temperature: 0.0                  # 0.0 = deterministic routing decisions
+  num_predict: 1024                 # max tokens per LLM call
+  num_workers: 0                    # M1 Metal — do not change
+
+  # ── To swap LLM provider, change ONLY this block ──────────
+  # openai:
+  #   from langchain_openai import ChatOpenAI
+  #   llm = ChatOpenAI(model="gpt-4o", temperature=0)
+  #
+  # anthropic:
+  #   from langchain_anthropic import ChatAnthropic
+  #   llm = ChatAnthropic(model="claude-sonnet-4-5", temperature=0)
+  #
+  # The graph, all agents, and all tools are provider-agnostic.
+  # Only src/llm.py reads this config block.
+  # ──────────────────────────────────────────────────────────
+
+
+# ── MCP Server ───────────────────────────────────────────────
+mcp_server:
+  host: localhost
+  port: 8001                        # MCP server listens here
+  transport: stdio                  # "stdio" for local process
+  server_name: multi-agent-tool-server
+  server_version: "1.0.0"
+
+  tools:
+    duckduckgo_search:
+      enabled: true
+      default_max_results: 5
+
+    wikipedia_lookup:
+      enabled: true
+      default_sentences: 5
+
+    python_calculator:
+      enabled: true
+      # Allowed math functions (sandboxed eval whitelist)
+      allowed_functions:
+        - sqrt
+        - abs
+        - round
+        - floor
+        - ceil
+        - pow
+        - log
+        - log10
+
+    local_file_reader:
+      enabled: true
+      data_dir: ./data              # sandboxed root — all paths resolved relative to this
+      max_file_size_bytes: 1048576  # 1 MB
+
+
+# ── ChromaDB (Agent Memory) ──────────────────────────────────
+chromadb:
+  persist_directory: ./storage/chroma
+  collection_name: agent_memory
+  embedding_model: nomic-embed-text  # pulled via Ollama — free, local
+  n_results: 3                       # top-k similar traces injected as context
+  similarity_threshold: 0.75         # minimum cosine similarity to include a trace
+
+
+# ── SQLite (Step Logging) ────────────────────────────────────
+sqlite:
+  db_path: ./storage/logs/agent_steps.db
+  table_name: agent_steps
+  echo: false                        # set true to print SQL to terminal (debug only)
+
+
+# ── FastAPI ──────────────────────────────────────────────────
+fastapi:
+  host: 0.0.0.0
+  port: 8000
+  reload: false                      # true only in local dev (not in Docker)
+  log_level: info
+  title: "Multi-Agent System API"
+  version: "1.0.0"
+  description: "LangGraph multi-agent system exposed as a REST API."
+
+
+# ── Agent Graph ──────────────────────────────────────────────
+graph:
+  recursion_limit: 25               # LangGraph max node traversals per run
+  max_retries: 1                    # how many times supervisor retries a failed sub-agent
+  timeout_seconds: 60               # per-agent node timeout
+
+  # Routing labels — supervisor outputs one of these strings
+  routing:
+    research_only: "research_only"
+    calculation_only: "calculation_only"
+    both: "both"
+    summarize_only: "summarize_only"
+
+
+# ── Supervisor Agent ─────────────────────────────────────────
+supervisor:
+  system_prompt: |
+    You are a supervisor agent responsible for routing user queries to the correct
+    specialist agents. Analyse the query and output EXACTLY one of the following
+    routing decisions (no other text):
+      - research_only       (query requires web/wiki research)
+      - calculation_only    (query requires numerical computation)
+      - both                (query requires both research and calculation)
+      - summarize_only      (query can be answered by summarisation of prior context)
+
+    You also receive relevant past reasoning traces as context. Use them if helpful.
+
+
+# ── Research Agent ───────────────────────────────────────────
+research_agent:
+  system_prompt: |
+    You are a research specialist. Use the DuckDuckGo search tool and Wikipedia
+    lookup tool (via MCP) to gather relevant information for the given query.
+    Return a structured summary of your findings. Be concise and factual.
+  tools:
+    - duckduckgo_search
+    - wikipedia_lookup
+
+
+# ── Calculator Agent ─────────────────────────────────────────
+calculator_agent:
+  system_prompt: |
+    You are a calculation specialist. Use the python_calculator tool (via MCP)
+    to solve numerical problems. Show your reasoning step by step. Return the
+    final numeric result clearly labelled.
+  tools:
+    - python_calculator
+
+
+# ── Summarizer Agent ─────────────────────────────────────────
+summarizer_agent:
+  system_prompt: |
+    You are a synthesis specialist. You receive outputs from the research agent
+    and/or the calculator agent. Synthesise them into a single, coherent, accurate
+    final answer for the user. Do not add information beyond what was provided.
+
+
+# ── Logging ──────────────────────────────────────────────────
+logging:
+  level: INFO                       # DEBUG | INFO | WARNING | ERROR
+  format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+  rich_tracing: true                # pretty-print agent steps to terminal via rich

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Conda / virtualenv
+.env
+.venv
+env/
+
+# Runtime storage — never commit
+storage/
+data/*.txt
+data/*.md
+data/*.pdf
+
+# Secrets
+.env.local
+*.key
+*.pem
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Docker
+.dockerignore
