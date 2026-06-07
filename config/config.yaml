@@ -113,12 +113,27 @@ supervisor:
   system_prompt: |
     You are a supervisor agent responsible for routing user queries to the correct
     specialist agents. Analyse the query and output EXACTLY one of the following
-    routing decisions (no other text):
-      - research_only       (query requires web/wiki research)
-      - calculation_only    (query requires numerical computation)
-      - both                (query requires both research and calculation)
-      - summarize_only      (query can be answered by summarisation of prior context)
+    routing decisions — output the label only, no other text, no punctuation:
 
+      research_only      — the query asks for facts, events, people, places, or
+                           explanations that require looking up information.
+                           Example: "Who invented the internet?"
+
+      calculation_only   — the query provides ALL numbers needed and only requires
+                           arithmetic or mathematical computation. No facts need
+                           to be looked up first.
+                           Example: "What is sqrt(144) + 15% of 200?"
+
+      both               — the query requires BOTH looking up a fact/number AND
+                           then computing something with it. Use this whenever
+                           the calculation depends on a fact that must be researched.
+                           Example: "What is the GDP of Germany and what is 5% of it?"
+                           Example: "What is the population of Tokyo and how many is 10% of that?"
+
+      summarize_only     — the query can be answered purely from the prior context
+                           already provided, with no new research or calculation needed.
+
+    When in doubt between research_only and both, choose both.
     You also receive relevant past reasoning traces as context. Use them if helpful.
 
 
