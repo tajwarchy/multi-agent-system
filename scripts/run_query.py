@@ -46,7 +46,7 @@ def main() -> None:
 
     # ── Routing info ──────────────────────────────────────────────────────────
     console.print(f"\n[bold]Route:[/bold]    [yellow]{result.get('route')}[/yellow]")
-    console.print(f"[bold]Query ID:[/bold] {result.get('query_id')}")
+    console.print(f"[bold]Query ID:[/bold] {result.get('query_id')}  [dim](use this for /trace/{{query_id}})[/dim]")
     console.print(f"[bold]Total:[/bold]    {total:.0f} ms\n")
 
     # ── Agent trace table ─────────────────────────────────────────────────────

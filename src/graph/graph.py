@@ -35,11 +35,55 @@ from src.graph.nodes.research    import research_node
 from src.graph.nodes.summarizer  import summarizer_node
 from src.graph.nodes.supervisor  import supervisor_node
 from src.graph.state import AgentState
+from src.logging.sqlite_logger import log_agent_steps
 
 log = logging.getLogger(__name__)
 cfg = load_config()
 
 _ROUTING = cfg["graph"]["routing"]
+_MAX_RETRIES = cfg["graph"]["max_retries"]
+
+
+# ── Failure-isolated node wrappers ────────────────────────────────────────────
+
+def _with_retry(node_fn, node_key: str):
+    """
+    Wrap a node function with retry logic (max_retries from config).
+    On repeated failure, returns partial state with error appended.
+    The graph never raises — summarizer always runs.
+    """
+    def wrapper(state: AgentState) -> dict:
+        max_retries = _MAX_RETRIES
+        last_result = {}
+        for attempt in range(max_retries + 1):
+            try:
+                last_result = node_fn(state)
+                # If node itself flagged an error, check if we should retry
+                node_errors = [
+                    e for e in last_result.get("errors", [])
+                    if node_key in e
+                ]
+                if not node_errors:
+                    return last_result          # success
+                if attempt < max_retries:
+                    log.warning(
+                        "[Retry] %s failed (attempt %d/%d) — retrying",
+                        node_key, attempt + 1, max_retries + 1,
+                    )
+            except Exception as e:
+                log.error("[Retry] %s raised exception (attempt %d): %s", node_key, attempt + 1, e)
+                last_result = {
+                    "errors": state.get("errors", []) + [f"{node_key}: exception — {e}"],
+                    "agent_trace": state.get("agent_trace", []),
+                }
+                if attempt < max_retries:
+                    continue
+        return last_result
+    return wrapper
+
+
+research_with_retry    = _with_retry(research_node,    "research")
+calculator_with_retry  = _with_retry(calculator_node,  "calculator")
 
 
 # ── Conditional edge: supervisor → sub-agents ─────────────────────────────────
@@ -116,8 +160,8 @@ def build_graph() -> StateGraph:
 
     # ── Add nodes ─────────────────────────────────────────────────────────────
     builder.add_node("supervisor",    supervisor_node)
-    builder.add_node("research",      research_node)
-    builder.add_node("calculator",    calculator_node)
+    builder.add_node("research",      research_with_retry)
+    builder.add_node("calculator",    calculator_with_retry)
     builder.add_node("both_research", parallel_research_and_calculator)
     builder.add_node("summarizer",    summarizer_node)
 
@@ -190,4 +234,8 @@ def run_graph(query: str, query_id: str | None = None) -> AgentState:
         "[Graph] complete  query_id=%s  route=%s  errors=%d",
         query_id, result.get("route"), len(result.get("errors", [])),
     )
+
+    # ── Persist every step to SQLite ──────────────────────────────────────────
+    log_agent_steps(result)
+
     return result
