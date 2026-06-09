@@ -51,12 +51,18 @@ def get_llm() -> BaseChatModel:
 
     if provider == "ollama":
         # ── Default: Ollama local inference (M1 Metal via num_gpu=1) ──────────
+        # OLLAMA_BASE_URL env var overrides config (used inside Docker)
+        import os
+        base_url = os.environ.get(
+            "OLLAMA_BASE_URL",
+            llm_cfg.get("base_url", "http://localhost:11434"),
+        )
         from langchain_ollama import ChatOllama
         return ChatOllama(
             model=model,
             temperature=temperature,
             num_predict=int(llm_cfg.get("num_predict", 1024)),
-            base_url=llm_cfg.get("base_url", "http://localhost:11434"),
+            base_url=base_url,
         )
 
     if provider == "openai":

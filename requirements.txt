@@ -1,0 +1,43 @@
+# requirements.txt
+# Used by Docker images (pip install -r requirements.txt).
+# For local dev, use environment.yml with conda instead.
+
+# ── LangChain / LangGraph ────────────────────────────────────────────────────
+langchain==0.3.25
+langchain-core==0.3.60
+langchain-community==0.3.24
+langchain-ollama==0.3.3
+langgraph==0.2.73
+
+# ── MCP ──────────────────────────────────────────────────────────────────────
+mcp==1.9.2
+anyio==4.7.0
+
+# ── LLM client ───────────────────────────────────────────────────────────────
+ollama==0.4.8
+
+# ── Tools ────────────────────────────────────────────────────────────────────
+duckduckgo-search==8.0.1
+wikipedia==1.4.0
+
+# ── Vector memory ────────────────────────────────────────────────────────────
+chromadb==0.6.3
+
+# ── Database ─────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.41
+aiosqlite==0.21.0
+
+# ── API ───────────────────────────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+httpx==0.28.1
+
+# ── Validation / config ───────────────────────────────────────────────────────
+pydantic==2.11.5
+pydantic-settings==2.9.1
+pyyaml==6.0.2
+python-dotenv==1.1.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+rich==14.0.0
+tenacity==9.1.2

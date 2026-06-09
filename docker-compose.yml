@@ -1,0 +1,50 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Multi-Agent System — docker-compose
+#
+# Services:
+#   api       → FastAPI app (POST /run, GET /trace, GET /health)
+#
+# Ollama runs on the HOST Mac (M1 Metal GPU).
+# The api container reaches it via host.docker.internal:11434.
+# ChromaDB and SQLite are local persistent volumes mounted into the container.
+#
+# One-command startup:
+#   docker compose up --build
+#
+# Prerequisites on host:
+#   ollama serve          (running on host)
+#   ollama pull mistral   (model available)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  api:
+    build:
+      context:    .
+      dockerfile: Dockerfile.api
+    container_name: multi_agent_api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist ChromaDB and SQLite across container restarts
+      - ./storage:/app/storage
+      # Mount data dir so file_reader tool works
+      - ./data:/app/data
+    environment:
+      ANONYMIZED_TELEMETRY: "false"
+      PYTHONUNBUFFERED:      "1"
+      # ── LLM target: Ollama on host Mac ───────────────────────────────────
+      # config.yaml llm.base_url is overridden here for Docker networking
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+    extra_hosts:
+      # Allows container to reach host machine on all platforms
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 15s
